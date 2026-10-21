@@ -1,4 +1,4 @@
-"""Inspect per-hand MediaPipe observations in a standalone camera preview."""
+"""Preview the hand-controlled cube playground and hand diagnostics."""
 
 from __future__ import annotations
 
@@ -583,6 +583,11 @@ def main() -> None:
         action="store_true",
         help="Show estimates calculated from raw palm landmarks",
     )
+    parser.add_argument(
+        "--diagnostics",
+        action="store_true",
+        help="Start in the hand diagnostics view instead of the playground",
+    )
     args = parser.parse_args()
     if not args.model.is_file():
         parser.error(f"Model file does not exist: {args.model}")
@@ -619,7 +624,7 @@ def main() -> None:
                 raise RuntimeError("Camera geometry requires a valid image size")
             playground = ActionPlayground(camera_geometry)
             displayed_action: ActionEvent | None = None
-            view: PreviewView = "diagnostics"
+            view: PreviewView = "diagnostics" if args.diagnostics else "playground"
 
             selected_hand = 0
             coordinate_space = "image"

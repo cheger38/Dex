@@ -51,10 +51,14 @@ After setup, run from the project root:
 .venv/bin/python src/preview_hand_observation.py
 ```
 
+The preview starts in the action playground. Add `--diagnostics` to start in
+the hand diagnostics view instead.
+
 To use a different camera or model:
 
 ```sh
 .venv/bin/python src/preview_hand_observation.py --camera 1
+.venv/bin/python src/preview_hand_observation.py --diagnostics
 .venv/bin/python src/preview_hand_observation.py --model /path/to/gesture_recognizer.task
 .venv/bin/python src/preview_hand_observation.py --no-palm-filter
 .venv/bin/python src/preview_hand_observation.py --calibration /path/to/camera-1280x720.yaml
