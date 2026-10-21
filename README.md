@@ -78,9 +78,11 @@ blue 5 cm cube centered in the image, 0.5 m from the camera, with its front face
 parallel to the camera. Move the fingertip midpoint near a cube at roughly the
 same depth to highlight it in cyan. A pinch on the cube turns it orange while
 the pinch is active. Drag to add cubes along one of its six face
-directions. Dragging toward an occupied row removes cubes one at a time. The
-chosen direction stays fixed until release, and moving back shortens the live
-preview. Opening the fingers commits the edit; losing tracking cancels it.
+directions. Dragging toward an occupied row removes the starting cube and the
+cubes crossed by the drag. If that would clear the scene, the last cube reached
+remains. The chosen direction stays fixed until release, and moving back
+shortens the live preview. Opening the fingers commits the edit; losing tracking
+cancels it.
 Released cubes remain selectable for further edits. Swipes do not change the
 scene. If depth becomes unavailable during a pinch, the preview pauses. The
 playground also updates while viewing diagnostics. Physical depth remains

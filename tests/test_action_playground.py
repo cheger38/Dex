@@ -90,17 +90,48 @@ class ActionPlaygroundTests(unittest.TestCase):
         self.release_at((0.05, 0.3, 0.5))
         self.assertEqual(len(self.playground.cube_positions_m), 2)
 
-    def test_drag_toward_occupied_cells_removes_only_crossed_row(self) -> None:
+    def test_reduction_removes_start_and_crossed_cubes_with_pullback(self) -> None:
+        far = (3 * CUBE_SIDE_M, 0, 0.5)
         self.start_at(ORIGIN)
-        self.release_at((0.10, 0, 0.5))
-        self.assertEqual(len(self.playground.cube_positions_m), 3)
+        self.release_at(far)
+        original = self.playground.cube_positions_m
+        self.assertEqual(len(original), 4)
+
         self.start_at(ORIGIN)
-        self.feed_at((0.20, 0, 0.5), pinching=True)
-        self.assertEqual(self.playground.cube_positions_m, (ORIGIN,))
+        self.feed_at((0.10, 0, 0.5), pinching=True)
+        self.assertEqual(self.playground.cube_positions_m, (far,))
         self.feed_at((0.05, 0, 0.5), pinching=True)
-        self.assertEqual(len(self.playground.cube_positions_m), 2)
+        self.assertEqual(
+            self.playground.cube_positions_m,
+            ((0.10, 0, 0.5), far),
+        )
+        self.feed_at(ORIGIN, pinching=True)
+        self.assertEqual(self.playground.cube_positions_m, original)
+        self.release_at((0.10, 0, 0.5))
+        self.assertEqual(self.playground.cube_positions_m, (far,))
+
+    def test_removing_a_two_cube_row_keeps_the_destination(self) -> None:
+        other = (0.05, 0, 0.5)
+        for start, destination in ((ORIGIN, other), (other, ORIGIN)):
+            with self.subTest(start=start):
+                self.playground = ActionPlayground(CAMERA)
+                self.start_at(ORIGIN)
+                self.release_at(other)
+                self.start_at(start)
+                self.feed_at(destination, pinching=True)
+                self.assertEqual(self.playground.cube_positions_m, (destination,))
+                self.release_at(destination)
+                self.assertEqual(self.playground.cube_positions_m, (destination,))
+
+    def test_releasing_without_crossing_a_neighbor_keeps_start(self) -> None:
+        self.start_at(ORIGIN)
         self.release_at((0.05, 0, 0.5))
-        self.assertIn((0.10, 0, 0.5), self.playground.cube_positions_m)
+        self.start_at(ORIGIN)
+        self.release_at(ORIGIN)
+        self.assertEqual(
+            self.playground.cube_positions_m,
+            (ORIGIN, (0.05, 0, 0.5)),
+        )
 
     def test_added_cube_can_be_selected_for_a_branch(self) -> None:
         self.start_at(ORIGIN)
@@ -111,12 +142,15 @@ class ActionPlaygroundTests(unittest.TestCase):
         self.assertEqual(len(self.playground.cube_positions_m), 3)
         self.assertIn((0.05, 0.05, 0.5), self.playground.cube_positions_m)
 
-    def test_original_cube_can_be_removed_from_an_added_cube(self) -> None:
+    def test_lost_tracking_cancels_reduction_preview(self) -> None:
         self.start_at(ORIGIN)
-        self.release_at((0.05, 0, 0.5))
-        self.start_at((0.05, 0, 0.5))
-        self.release_at(ORIGIN)
-        self.assertEqual(self.playground.cube_positions_m, ((0.05, 0, 0.5),))
+        other = (0.05, 0, 0.5)
+        self.release_at(other)
+        self.start_at(other)
+        self.feed_at(ORIGIN, pinching=True)
+        self.assertEqual(self.playground.cube_positions_m, (ORIGIN,))
+        self.feed_at(ORIGIN, (PinchLost(1, CAMERA.project(ORIGIN)),))
+        self.assertEqual(self.playground.cube_positions_m, (ORIGIN, other))
 
     def test_depth_selects_between_overlapping_cubes(self) -> None:
         self.start_at(ORIGIN)

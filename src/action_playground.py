@@ -128,16 +128,22 @@ class ActionPlayground:
             MAX_DRAG_STEPS, max(0, floor((distance + CUBE_SIDE_M / 2) / CUBE_SIDE_M))
         )
         preview = self._cubes.copy()
+        last_crossed: Cell | None = None
         for step in range(1, requested_steps + 1):
             cell = self._offset(self._selected, self._direction, step)
             if self._edit_mode == "remove":
                 if cell not in self._cubes:
                     break
                 preview.remove(cell)
+                last_crossed = cell
             else:
                 if cell in self._cubes or self._center_m(cell)[2] <= CUBE_SIDE_M / 2:
                     break
                 preview.add(cell)
+        if last_crossed is not None:
+            preview.remove(self._selected)
+            if not preview:
+                preview.add(last_crossed)
         self._preview = preview
 
     def _finish_drag(self, *, commit: bool) -> None:
