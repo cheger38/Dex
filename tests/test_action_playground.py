@@ -9,6 +9,7 @@ from action_recognizer import ActivePinch, PinchEnd, PinchLost, PinchStart, Swip
 from camera_geometry import CameraGeometry
 from cube_geometry import CUBE_SIDE_M, cube_vertices
 from cube_overlay import draw_cube_scene
+from hand_observation import HandObservation, Landmark
 from palm_metrics_estimator import PalmMetrics
 from preview_hand_observation import draw_preview
 
@@ -138,7 +139,7 @@ class ActionPlaygroundTests(unittest.TestCase):
 class CameraOverlayTests(unittest.TestCase):
     def setUp(self) -> None:
         self.playground = ActionPlayground(CAMERA)
-        self.frame = np.zeros((800, 1000, 3), dtype=np.uint8)
+        self.frame = np.full((800, 1000, 3), (17, 31, 47), dtype=np.uint8)
         self.metrics = PalmMetrics(None, 0, None, None)
 
     def render(self, view: str = "playground") -> np.ndarray:
@@ -154,13 +155,62 @@ class CameraOverlayTests(unittest.TestCase):
             CAMERA,
         )
 
-    def test_cube_is_only_in_playground_and_highlight_changes_color(self) -> None:
-        normal = self.render()
+    def test_playground_contains_only_camera_image_and_cube(self) -> None:
+        rendered = self.render()
+        self.assertEqual(rendered.shape, self.frame.shape)
+        np.testing.assert_array_equal(rendered[:, :400], self.frame[:, :400])
+        np.testing.assert_array_equal(rendered[:, 600:], self.frame[:, 600:])
+        np.testing.assert_array_equal(self.frame[400, 500], (17, 31, 47))
+        self.assertFalse(np.array_equal(rendered[400, 500], self.frame[400, 500]))
+
+        diagnostics = self.render("diagnostics")
+        self.assertEqual(diagnostics.shape, (900, 1920, 3))
+        self.assertNotEqual(tuple(diagnostics[400, 500]), tuple(rendered[400, 500]))
+
+    def test_playground_hides_hand_drawings_and_action_text(self) -> None:
+        landmark = Landmark(0.1, 0.1, 0.0)
+        hand = HandObservation((landmark,) * 21, (landmark,) * 21, (), None)
+        rendered = draw_preview(
+            self.frame,
+            (hand,),
+            0,
+            "image",
+            self.metrics,
+            Swipe(0, (1, 0)),
+            "playground",
+            self.playground,
+            CAMERA,
+        )
+        np.testing.assert_array_equal(rendered[:200, :200], self.frame[:200, :200])
+
+    def test_idle_hover_and_active_pinch_have_distinct_colors(self) -> None:
+        idle = self.render()[400, 500].copy()
         self.playground.feed((), None, ORIGIN, (0.5, 0.5))
-        highlighted = self.render()
-        self.assertFalse(np.array_equal(normal[:, :980], highlighted[:, :980]))
-        self.assertEqual(normal[450, 490, 1] < highlighted[450, 490, 1], True)
-        self.assertEqual(np.count_nonzero(self.render("diagnostics")[:, :980]), 0)
+        hover = self.render()[400, 500].copy()
+        point = CAMERA.project(ORIGIN)
+        self.playground.feed(
+            (PinchStart(0, point),), ActivePinch(0, point), ORIGIN, point
+        )
+        active = self.render()[400, 500].copy()
+
+        self.assertGreater(idle[0], idle[1])
+        self.assertGreater(idle[1], idle[2])
+        self.assertGreater(hover[1], idle[1])
+        self.assertGreater(active[2], active[1])
+        self.assertFalse(np.array_equal(idle, hover))
+        self.assertFalse(np.array_equal(hover, active))
+
+        self.playground.feed((PinchEnd(1, point),), None, ORIGIN, point)
+        np.testing.assert_array_equal(self.render()[400, 500], idle)
+
+    def test_lost_pinch_clears_active_color(self) -> None:
+        point = CAMERA.project(ORIGIN)
+        self.playground.feed(
+            (PinchStart(0, point),), ActivePinch(0, point), ORIGIN, point
+        )
+        active = self.render()[400, 500].copy()
+        self.playground.feed((PinchLost(1, point),), None, ORIGIN, point)
+        self.assertFalse(np.array_equal(self.render()[400, 500], active))
 
     def test_additional_cube_is_projected_in_camera_view(self) -> None:
         point = CAMERA.project(ORIGIN)
@@ -175,9 +225,8 @@ class CameraOverlayTests(unittest.TestCase):
             CAMERA.project(endpoint),
         )
         rendered = self.render()
-        camera_image = rendered[:, :980]
-        colored = (camera_image[:, :, 2] > 100) & (camera_image[:, :, 0] < 30)
-        self.assertGreater(int(np.nonzero(colored)[1].max()), 550)
+        changed = np.any(rendered != self.frame, axis=2)
+        self.assertGreater(int(np.nonzero(changed)[1].max()), 550)
 
     def test_joined_cubes_do_not_draw_their_shared_side_face(self) -> None:
         left = np.zeros((800, 1000, 3), dtype=np.uint8)

@@ -29,7 +29,6 @@ class ActionPlayground:
         self._drag_start_m: Point3D | None = None
         self._direction: Cell | None = None
         self._edit_mode: str | None = None
-        self._steps = 0
 
     def feed(
         self,
@@ -59,7 +58,6 @@ class ActionPlayground:
                     )
                     self._direction = None
                     self._edit_mode = None
-                    self._steps = 0
 
         if self._selected is None:
             return
@@ -130,7 +128,6 @@ class ActionPlayground:
             MAX_DRAG_STEPS, max(0, floor((distance + CUBE_SIDE_M / 2) / CUBE_SIDE_M))
         )
         preview = self._cubes.copy()
-        steps = 0
         for step in range(1, requested_steps + 1):
             cell = self._offset(self._selected, self._direction, step)
             if self._edit_mode == "remove":
@@ -141,9 +138,7 @@ class ActionPlayground:
                 if cell in self._cubes or self._center_m(cell)[2] <= CUBE_SIDE_M / 2:
                     break
                 preview.add(cell)
-            steps += 1
         self._preview = preview
-        self._steps = steps
 
     def _finish_drag(self, *, commit: bool) -> None:
         if commit:
@@ -153,7 +148,6 @@ class ActionPlayground:
         self._drag_start_m = None
         self._direction = None
         self._edit_mode = None
-        self._steps = 0
         self._highlighted = None
 
     @staticmethod
@@ -184,17 +178,6 @@ class ActionPlayground:
     @property
     def selected_position_m(self) -> Point3D | None:
         return self._center_m(self._selected) if self._selected is not None else None
-
-    @property
-    def edit_status(self) -> str:
-        if self._selected is None:
-            return "READY" if self._highlighted is not None else "POINT AT A CUBE"
-        if self._direction is None:
-            return "DRAG TO EXTEND OR REMOVE"
-        assert self._edit_mode is not None
-        axis = ("X", "Y", "Z")[next(i for i, v in enumerate(self._direction) if v)]
-        sign = "+" if 1 in self._direction else "-"
-        return f"{self._edit_mode.upper()} {axis}{sign}: {self._steps}"
 
     def is_dragging(self) -> bool:
         return self._selected is not None

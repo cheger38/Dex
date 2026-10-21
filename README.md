@@ -51,8 +51,8 @@ After setup, run from the project root:
 .venv/bin/python src/preview_hand_observation.py
 ```
 
-The preview starts in the action playground. Add `--diagnostics` to start in
-the hand diagnostics view instead.
+The preview starts with only the camera image and projected cubes. Add
+`--diagnostics` to start in the hand diagnostics view instead.
 
 To use a different camera or model:
 
@@ -71,12 +71,13 @@ estimates and cube projection. The default calibration is
 If the file is missing, malformed, or for another resolution, the preview warns
 once and continues with uncorrected video and its assumed 60° field of view.
 
-In the preview, press `Tab` to switch between hand diagnostics and the action
-playground, `i` for image coordinates, `w` for world coordinates, `1` or `2` to
-select a hand, and `q` to quit. The playground starts with a 5 cm cube centered
-in the image, 0.5 m from the camera, with its front face parallel to the camera.
-Move the fingertip midpoint near a cube at roughly the same depth to highlight
-it. Pinch while highlighted and drag to add cubes along one of its six face
+In the preview, press `Tab` to switch between the playground and hand diagnostics,
+or `q` to quit. In diagnostics, press `i` for image coordinates, `w` for world
+coordinates, and `1` or `2` to select a hand. The playground starts with a light
+blue 5 cm cube centered in the image, 0.5 m from the camera, with its front face
+parallel to the camera. Move the fingertip midpoint near a cube at roughly the
+same depth to highlight it in cyan. A pinch on the cube turns it orange while
+the pinch is active. Drag to add cubes along one of its six face
 directions. Dragging toward an occupied row removes cubes one at a time. The
 chosen direction stays fixed until release, and moving back shortens the live
 preview. Opening the fingers commits the edit; losing tracking cancels it.
@@ -87,8 +88,8 @@ approximate because the estimator uses an assumed palm width; camera geometry
 uses an assumed field of view when calibration is unavailable.
 Palm landmarks are filtered for motion and orientation estimates by default;
 `--no-palm-filter` shows estimates from raw landmarks for comparison. The
-landmarks drawn in the preview and listed in the panel are always raw.
-Recognized actions appear for two seconds in either view.
+landmarks drawn in diagnostics and listed in its panel are always raw.
+Recognized actions appear for two seconds in diagnostics.
 
 To tune smoothing in code, pass `OneEuroPalmFilter(OneEuroSettings(...))` to
 `PalmMetricsEstimator(palm_filter=...)`. Pass `None` to bypass it, or supply

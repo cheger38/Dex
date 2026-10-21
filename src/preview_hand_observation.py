@@ -63,7 +63,6 @@ APPROACH_METER_HALF_WIDTH = 105
 APPROACH_DISPLAY_LIMIT = 2.0  # Log palm-size change per second.
 APPROACH_DISPLAY_DEADZONE = 0.08
 ACTION_DISPLAY_MS = 2_000
-PLAYGROUND_LEFT = 1010
 PreviewView = Literal["diagnostics", "playground"]
 HAND_CONNECTIONS = (
     (0, 1),  # Wrist to thumb base (CMC)
@@ -133,9 +132,21 @@ def draw_preview(
     view: PreviewView = "diagnostics",
     playground: ActionPlayground | None = None,
     camera_geometry: CameraGeometry | None = None,
-    calibrated: bool = False,
 ) -> Frame:
-    """Draw hand observations over a letterboxed copy of the camera frame."""
+    """Draw either the clean cube scene or the detailed hand diagnostics."""
+    if view == "playground":
+        if playground is None or camera_geometry is None:
+            raise ValueError("Playground view requires a scene and camera geometry")
+        preview = frame.copy()
+        draw_cube_scene(
+            preview,
+            playground.cube_positions_m,
+            camera_geometry,
+            playground.highlighted_position_m,
+            playground.selected_position_m,
+        )
+        return preview
+
     height, width = frame.shape[:2]
     # Reserve the right side for values so it cannot cover landmark numbers.
     scale = min(PANEL_LEFT / width, DISPLAY_HEIGHT / height)
@@ -147,17 +158,6 @@ def draw_preview(
     preview[top : top + shown_height, left : left + shown_width] = cv2.resize(
         frame, (shown_width, shown_height)
     )
-    if view == "playground":
-        if playground is None or camera_geometry is None:
-            raise ValueError("Playground view requires a scene and camera geometry")
-        viewport = preview[top : top + shown_height, left : left + shown_width]
-        draw_cube_scene(
-            viewport,
-            playground.cube_positions_m,
-            camera_geometry,
-            playground.highlighted_position_m,
-        )
-
     for index, hand in enumerate(hands):
         points = [
             (
@@ -206,17 +206,6 @@ def draw_preview(
         panel, (PANEL_LEFT, 0), (DISPLAY_WIDTH, DISPLAY_HEIGHT), (0, 0, 0), -1
     )
     cv2.addWeighted(panel, 0.78, preview, 0.22, 0, preview)
-    if view == "playground":
-        assert playground is not None
-        _draw_playground(
-            preview,
-            playground,
-            action,
-            playground.is_dragging() and metrics.palm_center_m is None,
-            calibrated,
-        )
-        return preview
-
     cv2.line(
         preview,
         (ORIENTATION_PANEL_LEFT, 0),
@@ -262,73 +251,6 @@ def draw_preview(
         value = f"{index:02d}   {point.x:+.4f}   {point.y:+.4f}   {point.z:+.4f}"
         _write(preview, value, (text_x, 455 + index * 20), 0.56)
     return preview
-
-
-def _draw_playground(
-    preview: Frame,
-    playground: ActionPlayground,
-    action: ActionEvent | None,
-    depth_unavailable: bool,
-    calibrated: bool,
-) -> None:
-    _write(preview, "ACTION PLAYGROUND", (PLAYGROUND_LEFT, 36), 0.8)
-    _write(
-        preview,
-        "Point at cube, pinch and drag  TAB: diagnostics  Q: quit",
-        (PLAYGROUND_LEFT, 69),
-        0.55,
-    )
-    if isinstance(action, Swipe):
-        vx, vy = action.peak_velocity
-        _write(
-            preview,
-            f"Swipe detected (cube unchanged)  speed {hypot(vx, vy):.3f}/s",
-            (PLAYGROUND_LEFT, 110),
-            0.58,
-        )
-    elif isinstance(action, (PinchStart, PinchEnd, PinchLost)):
-        x, y = action.point
-        _write(
-            preview,
-            f"{type(action).__name__}  point ({x:+.3f}, {y:+.3f})",
-            (PLAYGROUND_LEFT, 110),
-            0.58,
-        )
-    elif action is not None:
-        _write(
-            preview,
-            f"{type(action).__name__}  t {action.timestamp_ms} ms",
-            (PLAYGROUND_LEFT, 110),
-            0.58,
-        )
-    else:
-        _write(preview, "No recent action", (PLAYGROUND_LEFT, 110), 0.58)
-
-    _write(
-        preview,
-        f"Cubes: {len(playground.cube_positions_m)}  {playground.edit_status}",
-        (PLAYGROUND_LEFT, 165),
-        0.58,
-    )
-    selected = playground.selected_position_m
-    if selected is not None:
-        x, y, z = selected
-        _write(
-            preview,
-            f"Selected XYZ (m): {x:+.3f}, {y:+.3f}, {z:+.3f}",
-            (PLAYGROUND_LEFT, 225),
-            0.55,
-        )
-    _write(
-        preview,
-        "Camera intrinsics: calibrated" if calibrated else "Camera intrinsics: assumed",
-        (PLAYGROUND_LEFT, 195),
-        0.52,
-    )
-    if depth_unavailable:
-        _write(
-            preview, "Depth unavailable - preview paused", (PLAYGROUND_LEFT, 275), 0.54
-        )
 
 
 def _draw_palm_velocity(preview: Frame, velocity: tuple[float, float] | None) -> None:
@@ -679,7 +601,6 @@ def main() -> None:
                     view,
                     playground,
                     camera_geometry,
-                    correction is not None,
                 )
 
                 cv2.imshow(WINDOW_NAME, preview)
