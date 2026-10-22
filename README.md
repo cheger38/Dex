@@ -6,6 +6,10 @@ perspective-projected cubes by pinching and dragging. The playground is an
 experiment: hand depth is inferred from apparent palm width rather than measured
 by a depth camera.
 
+
+https://github.com/user-attachments/assets/b71df6f6-ef93-484d-88d3-313661a71479
+
+
 ## Set up
 
 Use Python 3.14 and a webcam that can provide MJPEG 1280×720 at 30 FPS. From the
